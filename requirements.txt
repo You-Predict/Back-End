@@ -1,6 +1,6 @@
 flask==1.1.2
 numpy==1.19.2
-tensorflow
+tensorflow==2.0.0
 nltk
 pandas
 keras
