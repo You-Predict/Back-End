@@ -13,4 +13,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 EXPOSE 5000/tcp
 EXPOSE 5000/udp
 # run the command
-CMD ["python3", "API.py"]
+CMD ["python3", "app.py"]
