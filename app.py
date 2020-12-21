@@ -225,4 +225,4 @@ if __name__ == '__main__':
     # Max number of words in each complaint.
     MAX_SEQUENCE_LENGTH = 500
     port = int(os.environ.get('PORT',5000))
-    app.run(debug=True, use_reloader=False, host='0.0.0.0',port=port)
+    app.run(debug=False, use_reloader=False, host='0.0.0.0',port=port)
