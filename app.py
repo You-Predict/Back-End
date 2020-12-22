@@ -1,5 +1,4 @@
 # import libraries
-
 from flask import Flask, request, jsonify, json
 import requests
 import pickle
@@ -13,12 +12,12 @@ import re
 import nltk
 from nltk.corpus import stopwords
 import pandas as pd
+import numpy as np
+from elasticsearch import Elasticsearch
 
 app = Flask(__name__)
 
 ps = nltk.PorterStemmer()
-
-
 def stemming(text_sentence):
     """"
     stemming function  reducing the word to its core root
@@ -29,8 +28,6 @@ def stemming(text_sentence):
 
 
 wm = nltk.WordNetLemmatizer()
-
-
 def lemmatize(text_sentence):
     """"
     Lemmatization is closely related to stemming. 
@@ -43,8 +40,6 @@ def lemmatize(text_sentence):
 
 REPLACE_BY_SPACE_RE = re.compile('[/(){}\[\]\|@,;]')
 BAD_SYMBOLS_RE = re.compile('[^0-9a-z #+_\']')
-
-
 def clean_text(text):
     """"
     Cleaning the text through remove the numbers, symbols and convert to lower case 
@@ -101,7 +96,6 @@ def fromTextToFeatures(seq_text):
     Returns:
         array: 
     """
-    seq_text = [seq_text]
     # gives you a list of integer sequences encoding the words in your sentence
     # seq_text : array of lists, each list represents the tokens of its text
     X = tokenizer.texts_to_sequences(seq_text)
@@ -118,7 +112,7 @@ def prepare_text(text):
     Returns:
         array: expected rating for the app 
     """
-    text = preprocess_text(text)
+    text = list(map(lambda x: preprocess_text(x), text))
     text_encoded = fromTextToFeatures(text)
     return text_encoded
 
@@ -157,13 +151,7 @@ def predict_one_app():
         # storing the arguments values in variables
         app_name = requested_data['app_name']
         app_description = requested_data['app_description']
-        # merge the app name and description for prepare the text to the model
-        text = app_name + " " + app_description
-        # call the predicting function and return the result
-        prediction_result = predict_rating(text)
-        prediction_result = prediction_result[0].tolist()
-        request_response = {"predicted_rating":prediction_result.index(max(prediction_result))+1}
-        return jsonify(request_response)
+
     # if the method is GET
     elif request.method == 'GET':
         requested_data = request.args
@@ -173,35 +161,77 @@ def predict_one_app():
         app_name = requested_data.get('app_name')
         # get the app description from GET request args
         app_description = requested_data.get('app_description')
-        # merge the app name and description for prepare the text to the model
-        text = app_name + " " + app_description
-        # call the predicting function and return the result
-        prediction_result = predict_rating(text)
-        prediction_result = prediction_result[0].tolist()
-        request_response = {"predicted_rating":prediction_result.index(max(prediction_result))+1}
-        return jsonify(request_response)
+    # merge the app name and description for prepare the text to the model
+    text = app_name + " " + app_description
+    # call the predicting function and return the result
+    prediction_result = predict_rating(text)
+    prediction_result = prediction_result[0].tolist()
+    request_response = {
+        "predicted_rating": prediction_result.index(max(prediction_result))+1}
+    return jsonify(request_response)
 
 
 @app.route("/search", methods=['GET', 'POST'])
 def get_rating_for_relative_apps():
+    """
+     retrive relative apps to predict it's rating
+    """
     # if the method is POST
     if request.method == 'POST':
         # get the data from the POST request
         requested_data = request.get_json()
+        if len(requested_data) < 1:
+            return "bad request. you need to give the app name"
         # storing the arguments values in variables
-        apps_type = requested_data['apps_type']
+        app_name = requested_data['app_name']
         # call the predicting function and return the result
-        return json.dumps(predict_rating(keras_model, text))
+
     # if the method is GET
-    else:
+    elif request.method == 'GET':
+        requested_data = request.args
+        if len(requested_data) < 1:
+            return "bad request. you need to give the app name"
         # get the data from the get request
-        apps_type = request.args.get('apps_type')
-    """
-     retrive relative apps to predict it's rating
-    """
+        app_name = requested_data.get('app_name')
+
+    query = app_name
+    # a query over the title and description
+    query_seetings = {
+        "query": {
+            "multi_match": {
+                "query": query
+            }
+        }
+    }
+    # using the search module to make the queryﻻ
+    res = es.search(index=index_name, body=query_seetings)
+    # response list
+    response_list = res['hits']['hits']
+    # if no app was found
+    if len(response_list) == 0:
+        return jsonify([])
+    # adding neccessary keys to the dicts
+    for item in response_list:
+        item.update({"title": item['_source']['title'], "description": item['_source']
+                     ['description'], "store_rating": item['_source']['store_rating']})
+    df = pd.DataFrame(response_list)
+    # removing unnecessary columns from the dataframe
+    df = df.drop(columns=['_index', '_type', '_score', '_source'])
+    # combining the name and description
+    texts_for_preproccessing = [df['title']+' '+df['description']]
+    texts_for_preproccessing = np.array(texts_for_preproccessing[0].values)
+    # calling the prediction function
+    prediction_result = predict_rating(texts_for_preproccessing)
+    prediction_result = prediction_result.tolist()
+    prediction_result = list(
+        map(lambda x: x.index(max(x))+1, prediction_result))
+    # create a column for the predictions
+    df['prediction_rating'] = prediction_result
     # call the predicting function and return the result
     # return json.dumps(predict_rating(keras_model, text))
-    return json.dumps(prepare_text(text))
+    df_json = df.to_json(orient="records")
+    request_response = df_json
+    return request_response
 
 
 """
@@ -224,5 +254,10 @@ if __name__ == '__main__':
         tokenizer = pickle.load(handle)
     # Max number of words in each complaint.
     MAX_SEQUENCE_LENGTH = 500
-    port = int(os.environ.get('PORT',5000))
-    app.run(debug=False, use_reloader=False, host='0.0.0.0',port=port)
+    # connecting to elasticsearch endpoint
+    es = Elasticsearch("https://0f09431a2786444ab99c6826be973c68.europe-west3.gcp.cloud.es.io:9243",
+                       http_auth=('elastic', 'zIXNAI2UfZVPTqVxd3LllsGe'))
+    # name of the created index
+    index_name = "applications"
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=False, use_reloader=False, host='0.0.0.0', port=port)
