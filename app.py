@@ -1,11 +1,12 @@
 # import libraries
+import nltk
+nltk.download('stopwords')
 from flask import Flask, request, jsonify, json
 import requests
 import os
 import tensorflow
-import nltk
 import re
-import pickle
+import pickle5 as pickle
 import pandas as pd
 import numpy as np
 from elasticsearch import Elasticsearch
