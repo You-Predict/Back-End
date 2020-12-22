@@ -1,19 +1,16 @@
 # import libraries
 from flask import Flask, request, jsonify, json
 import requests
-import pickle
 import os
-from tensorflow import keras
-from keras.models import Sequential
-from keras.preprocessing import text, sequence
-from keras import utils
-from keras.preprocessing.sequence import pad_sequences
-import re
+import tensorflow
 import nltk
-from nltk.corpus import stopwords
+import re
+import pickle5 as pickle
 import pandas as pd
 import numpy as np
 from elasticsearch import Elasticsearch
+from nltk.corpus import stopwords
+import os
 
 app = Flask(__name__)
 
@@ -101,7 +98,7 @@ def fromTextToFeatures(seq_text):
     X = tokenizer.texts_to_sequences(seq_text)
     # split the X 1-dimensional sequence of word indexes into a 2-d listof items
     # Each item is split is a sequence of 50 value left-padded with zeros
-    X = pad_sequences(X, maxlen=MAX_SEQUENCE_LENGTH)
+    X = tensorflow.keras.preprocessing.sequence.pad_sequences(X, maxlen=MAX_SEQUENCE_LENGTH)
     return X
 
 
@@ -164,7 +161,7 @@ def predict_one_app():
     # merge the app name and description for prepare the text to the model
     text = app_name + " " + app_description
     # call the predicting function and return the result
-    prediction_result = predict_rating(text)
+    prediction_result = predict_rating([text])
     prediction_result = prediction_result[0].tolist()
     request_response = {
         "predicted_rating": prediction_result.index(max(prediction_result))+1}
@@ -248,7 +245,7 @@ if __name__ == '__main__':
 
     # else :
     # read keras model
-    keras_model = keras.models.load_model('FiveClassesModel.h5')
+    keras_model = tensorflow.keras.models.load_model('FiveClassesModel.h5')
     # loading keras tokenizer
     with open('tokenizer.pickle', 'rb') as handle:
         tokenizer = pickle.load(handle)
