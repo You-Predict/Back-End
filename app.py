@@ -5,7 +5,7 @@ import os
 import tensorflow
 import nltk
 import re
-import pickle5 as pickle
+import pickle
 import pandas as pd
 import numpy as np
 from elasticsearch import Elasticsearch
