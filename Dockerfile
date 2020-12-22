@@ -1,4 +1,4 @@
-FROM python:3.6.12
+FROM python:3.6-slim
 
 # set a directory for the app
 ENV APP_HOME /app
