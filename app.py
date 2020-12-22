@@ -6,7 +6,7 @@ import requests
 import os
 import tensorflow
 import re
-import pickle
+import pickle5
 import pandas as pd
 import numpy as np
 from elasticsearch import Elasticsearch
