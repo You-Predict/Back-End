@@ -145,51 +145,42 @@ def welcome():
 
 @app.route("/predict", methods=['GET', 'POST'])
 def predict_one_app():
-
     """
     This API will return the expected rating for new app
     it take the app name and description 
     """
 
     # if the method is POST
-    if request.method == 'POST':
-       
+    if request.method == 'POST':  
         # get the data from the POST request
         requested_data = request.get_json()
         if len(requested_data) < 2:
             return "bad request. you need to give the app name and description"
-      
         # storing the arguments values in variables
         app_name = requested_data['app_name']
         app_description = requested_data['app_description']
 
     # if the method is GET
-    elif request.method == 'GET':
-     
+    elif request.method == 'GET': 
         requested_data = request.args
         if len(requested_data) < 2:
             return "bad request. you need to give the app name and description"
-       
         # get the app name from GET request args
         app_name = requested_data.get('app_name')
         # get the app description from GET request args
         app_description = requested_data.get('app_description')
- 
     # merge the app name and description for prepare the text to the model
     text = app_name + " " + app_description
-    
     # call the predicting function and return the result
     prediction_result = predict_rating([text])
     prediction_result = prediction_result[0].tolist()
     request_response = {
-        "predicted_rating": prediction_result.index(max(prediction_result))+1}
-   
+        "predicted_rating": prediction_result.index(max(prediction_result))+1}   
     return jsonify(request_response)
 
 
 @app.route("/search", methods=['GET', 'POST'])
-def get_rating_for_relative_apps():
-   
+def get_rating_for_relative_apps(): 
     """
     This API will return a list of relative apps with it's expected rating 
     it take the app type, e.g. Photoshop and it will return the most relative phtoshop apps
@@ -204,7 +195,6 @@ def get_rating_for_relative_apps():
         # storing the arguments values in variables
         app_name = requested_data['app_name']
 
-   
     # if the method is GET
     elif request.method == 'GET':
         requested_data = request.args
@@ -212,7 +202,6 @@ def get_rating_for_relative_apps():
             return "bad request. you need to give the app name"
         # get the data from the get request
         app_name = requested_data.get('app_name')
-
     query = app_name
     # a query over the title and description
     query_seetings = {
@@ -227,37 +216,28 @@ def get_rating_for_relative_apps():
     res = es.search(index=index_name, body=query_seetings)
     # response list
     response_list = res['hits']['hits']
-  
     # if no app was found
     if len(response_list) == 0:
         return jsonify([])
-   
     # adding neccessary keys to the dicts
     for item in response_list:
         item.update({"title": item['_source']['title'], "description": item['_source']
                      ['description'], "store_rating": item['_source']['store_rating']})
-
     df = pd.DataFrame(response_list)
-
     # removing unnecessary columns from the dataframe
     df = df.drop(columns=['_index', '_type', '_score', '_source'])
-    
     # combining the name and description
     texts_for_preproccessing = [df['title']+' '+df['description']]
     texts_for_preproccessing = np.array(texts_for_preproccessing[0].values)
-    
     # calling the prediction function
     prediction_result = predict_rating(texts_for_preproccessing)
     prediction_result = prediction_result.tolist()
     prediction_result = list(
         map(lambda x: x.index(max(x))+1, prediction_result))
-    
     # create a column for the predictions
     df['prediction_rating'] = prediction_result
-   
     df_json = df.to_json(orient="records")
     request_response = df_json
-
     return request_response
 
 
