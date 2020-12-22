@@ -4,4 +4,3 @@ tensorflow==2.3.0
 nltk
 pandas==1.1.5
 elasticsearch
-pickle
