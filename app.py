@@ -1,5 +1,7 @@
 # import libraries
 import nltk
+nltk.download('stopwords')
+nltk.download('wordnet')
 from flask import Flask, request, jsonify, json
 import requests
 import os
