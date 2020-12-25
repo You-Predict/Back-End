@@ -1,6 +1,5 @@
 # import libraries
 import nltk
-nltk.download('stopwords')
 from flask import Flask, request, jsonify, json
 import requests
 import os
@@ -11,6 +10,7 @@ import pandas as pd
 import numpy as np
 from elasticsearch import Elasticsearch
 from nltk.corpus import stopwords
+
 import os
 
 
